@@ -1,5 +1,5 @@
 use comfy_table::{Table, presets::UTF8_FULL, modifiers::UTF8_ROUND_CORNERS, Row, Cell};
-use goblin::mach::{MachO, segment::Segment, segment::Section};
+use goblin::mach::{MachO, segment::Segment, segment::Section, MultiArch, Mach};
 use std::env::args;
 
 /// Convenience extension to [MachO].
@@ -85,10 +85,25 @@ fn main() {
             panic!("No path to Mach-O binary provided!");
         }
     ;
-    let data = std::fs::read(&path_arg).expect("Unable to read Mach-O file");
-    // TODO: Understand if parsing at offset 0 is really the correct way to do this
-    let macho = MachO::parse(&data, 0).expect("Unable to parse Mach-O file");
 
-    print_sections(&macho); 
-    //dbg!(macho);
+    let data = std::fs::read(&path_arg).expect("Unable to read Mach-O file");
+
+    // Try to figure out which type of binary was provided
+    let mach = match Mach::parse(&data) {
+        Ok(mach) => mach,
+        Err(error) => panic!("Encountered error while trying to parse binary type: {}", error)
+    }; 
+    match mach {
+        Mach::Fat(multiarch) => {
+            for result_item in &multiarch {
+                match result_item {
+                    Ok(macho) => print_sections(&macho),
+                    Err(error) => {
+                        panic!("Encountered error while parsing Mach-O from multi-arch binary: {}", error.to_string());
+                    }
+                }
+            }
+        },
+        Mach::Binary(macho) => print_sections(&macho)
+    }
 }
