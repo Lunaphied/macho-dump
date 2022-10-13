@@ -72,10 +72,20 @@ fn print_sections(macho: &MachO) {
 }
 
 fn main() {
-    // For testing we assume that the first argument (the program name) is a path to a Mach-O
-    // binary (this is almost true when running this under macOS)
-    let path_str = args().next().unwrap();
-    let data = std::fs::read(&path_str).expect("Unable to read Mach-O file");
+    // FIXME: For now assume that the first provided argument exists and is the path to a Mach-O
+    // binary to examine. Falling back to attempting to examine this utility itself as a helper for
+    // testing.
+    let args = args().collect::<Vec<_>>();
+    let path_arg = 
+        if args.len() > 1 {
+            &args[1]
+        } else if args.len() == 1 {
+            &args[0]
+        } else {
+            panic!("No path to Mach-O binary provided!");
+        }
+    ;
+    let data = std::fs::read(&path_arg).expect("Unable to read Mach-O file");
     // TODO: Understand if parsing at offset 0 is really the correct way to do this
     let macho = MachO::parse(&data, 0).expect("Unable to parse Mach-O file");
 
